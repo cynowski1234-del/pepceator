@@ -1,0 +1,5 @@
+# Jak działa whitelista
+- Whitelista działa tak że jak posiadasz rangę "Pep Creators" możesz dodać użytkownika do panelu zarządzającego
+
+## Jak to zrobić?
+- Bierzesz Discord ID Użytkownika i wpisujesz w zakładkę #Whitelista, przydzielasz mu daną rangę którą wybierzesz

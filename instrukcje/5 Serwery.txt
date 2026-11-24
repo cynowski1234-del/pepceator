@@ -1,0 +1,2 @@
+# Czym jest zakładka server?
+Zakładka serwery działa na tej samej podstawie co logi tylko daje wam raport z całego serwera co się dzieje itp.

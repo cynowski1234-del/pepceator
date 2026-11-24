@@ -1,0 +1,29 @@
+{
+  "name": "pep-bot",
+  "version": "1.0.0",
+  "description": "Bot Discord chroniący serwer przed scam linkami (MrBeast, free nitro, fałszywy Steam itd.)",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "test": "node --test",
+    "migrate:supabase": "node scripts/migrate-to-supabase.js",
+    "panel:vercel-local": "node scripts/panel-standalone.js"
+  },
+  "engines": {
+    "node": ">=20.9"
+  },
+  "dependencies": {
+    "@google/genai": "^3.6.1",
+    "@supabase/supabase-js": "^2.119.2",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "express": "^5.3.0",
+    "jsqr": "^1.4.0",
+    "onnxruntime-node": "^1.31.1",
+    "ppu-paddle-ocr": "^6.7.1",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "qrcode": "^1.5.4"
+  }
+}

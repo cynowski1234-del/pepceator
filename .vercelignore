@@ -1,0 +1,6 @@
+# Na Vercel trafia tylko panel - bez danych lokalnych, sekretów i testów
+.env
+data/
+test/
+node_modules/
+*.log

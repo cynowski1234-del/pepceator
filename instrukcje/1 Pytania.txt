@@ -1,0 +1,3 @@
+# Jak korzystać z pytań?
+- Wejdź w zakładkę pytania.
+- w pytania i odpowiedzi masz już gotową bazę #EdycjaPytań, Jeżeli klikniesz myszką w dane pytanie Np: Kiedy PEP wychodzi? otwiera się zakładka z pytaniem, możesz edytować usunąć.

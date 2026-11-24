@@ -1,0 +1,3 @@
+# Anty Spam Jak działa
+- Anty spam jest gdyby wasz carl bot nie powstrzymał zahakowanego konta przed linkami
+- Zakładka Zablokowane Frazy, w tej zakładce możesz dodać frazę czyli tekst który bot nie wyszukuje w zdaniach lub zdjęciach Spam Bota. Również są dwa pola z przyciskami możesz ustawić Na wszystkie kanały lub tylko na jeden przeznaczony

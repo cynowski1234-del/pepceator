@@ -1,0 +1,6 @@
+# Logi Użytkownika
+- Logi polegają na tym że widzicie jaki dany użytkownik napisał taki scam link
+
+## Co widzicie w takich logach?
+- ID użytkownika
+- Chat na którym to napisał
