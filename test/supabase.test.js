@@ -176,3 +176,37 @@ test('panel (Vercel): brak konfiguracji daje czytelny komunikat zamiast awarii',
   assert.throws(() => createStandalonePanel(), /brakuje zmiennych środowiskowych: PANEL_SESSION_SECRET/);
   process.env.PANEL_SESSION_SECRET = saved;
 });
+
+// ---------- dwie kopie bota na jednym tokenie: nic nie dzieje się podwójnie ----------
+test('rezerwacje: tylko pierwsza kopia bota wykonuje akcję na danej wiadomości', async () => {
+  const claims = require('../src/claims');
+  assert.strictEqual(await claims.claim('ai', 'MSG-1'), true, 'pierwsza kopia odpowiada');
+  assert.strictEqual(await db.claim('claim:ai:MSG-1', 'inna-kopia'), false, 'druga kopia - zajęte');
+  assert.strictEqual(await claims.claim('ai', 'MSG-1'), false);
+  assert.strictEqual(await claims.claim('mod', 'MSG-1'), true, 'inna akcja na tej samej wiadomości to osobna rezerwacja');
+  assert.strictEqual(await claims.claim('ai', 'MSG-2'), true);
+
+  // sprzątanie: stare rezerwacje znikają
+  db.tables.kv.find((r) => r.key === 'claim:ai:MSG-2').updated_at = new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString();
+  await claims.cleanup();
+  assert.ok(!db.tables.kv.some((r) => r.key === 'claim:ai:MSG-2'));
+  assert.ok(db.tables.kv.some((r) => r.key === 'claim:ai:MSG-1'), 'świeże zostają');
+});
+
+test('rezerwacje: przy awarii bazy bot działa dalej (nie milknie)', async () => {
+  const claims = require('../src/claims');
+  const original = db.claim;
+  db.claim = async () => { throw new Error('timeout'); };
+  assert.strictEqual(await claims.claim('ai', 'MSG-3'), true);
+  db.claim = original;
+});
+
+test('status: wykrywa drugą kopię bota działającą na tym samym tokenie', async () => {
+  const warnings = [];
+  db.tables.kv = db.tables.kv.filter((r) => r.key !== 'bot_status');
+  db.tables.kv.push({ key: 'bot_status', value: { instance: 'HOSTING#123#abc', at: Date.now() - 20 * 1000 } });
+  const timer = status.startHeartbeat(db, () => ({ instance: 'KOMPUTER#9#def', tag: 'PEP BOT' }), 60 * 1000, { warn: (m) => warnings.push(m) });
+  clearInterval(timer);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.match(warnings[0], /DRUGA kopia bota .*komputer: HOSTING/);
+});

@@ -43,6 +43,15 @@ function createMemoryDb() {
       tables[table] = rowsOf(table).filter((r) => !Object.entries(eq).every(([k, v]) => r[k] === v));
       return [];
     },
+    async claim(key, owner) {
+      if (rowsOf('kv').some((r) => r.key === key)) return false;
+      rowsOf('kv').push({ key, value: { owner, at: Date.now() }, updated_at: new Date().toISOString() });
+      return true;
+    },
+    async removeOlderClaims(iso) {
+      tables.kv = rowsOf('kv').filter((r) => !(r.key.startsWith('claim:') && r.updated_at < iso));
+      return [];
+    },
     async removeOlder(table, column, value) {
       tables[table] = rowsOf(table).filter((r) => !(r[column] < value));
       return [];

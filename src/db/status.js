@@ -12,9 +12,25 @@ function formatUptime(ms) {
 }
 
 /** Bot: zapisuje status teraz i potem co minutę. getInfo() -> { tag, ping, guilds, phishing, ai, startedAt } */
-function startHeartbeat(db, getInfo, intervalMs = 60 * 1000) {
-  const beat = () => db.upsert('kv', [{ key: KEY, value: { ...getInfo(), at: Date.now() }, updated_at: new Date().toISOString() }], 'key')
-    .catch((err) => console.warn(`[status] zapis nieudany: ${err.message}`));
+function startHeartbeat(db, getInfo, intervalMs = 60 * 1000, { warn = console.warn } = {}) {
+  let warnedAt = 0;
+  const beat = async () => {
+    const info = getInfo();
+    try {
+      // inna kopia bota zapisała status w międzyczasie = działają dwa boty na tym samym tokenie
+      const [row] = await db.select('kv', { eq: { key: KEY } });
+      const other = row?.value;
+      if (other?.instance && info.instance && other.instance !== info.instance
+        && Date.now() - other.at < intervalMs * 2.5 && Date.now() - warnedAt > 10 * 60 * 1000) {
+        warnedAt = Date.now();
+        warn(`⚠️  Działa DRUGA kopia bota na tym samym tokenie (komputer: ${String(other.instance).split('#')[0]}). `
+          + 'Wyłącz jedną z nich – dzięki rezerwacjom nie odpowiadają podwójnie, ale obie zużywają limity.');
+      }
+      await db.upsert('kv', [{ key: KEY, value: { ...info, at: Date.now() }, updated_at: new Date().toISOString() }], 'key');
+    } catch (err) {
+      console.warn(`[status] zapis nieudany: ${err.message}`);
+    }
+  };
   beat();
   return setInterval(beat, intervalMs);
 }

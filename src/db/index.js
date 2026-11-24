@@ -34,6 +34,15 @@ function createSupabaseDb(client) {
       return run(q);
     },
     removeOlder: (table, column, value) => run(client.from(table).delete().lt(column, value)),
+    // Rezerwacja (np. wiadomości): true = udało się (pierwszy), false = ktoś już zarezerwował.
+    // Wpis w tabeli kv z kluczem "claim:..."; przy duplikacie baza nic nie zmienia i nic nie zwraca.
+    async claim(key, owner) {
+      const rows = await run(client.from('kv')
+        .upsert([{ key, value: { owner, at: Date.now() }, updated_at: new Date().toISOString() }], { onConflict: 'key', ignoreDuplicates: true })
+        .select('key'));
+      return rows.length > 0;
+    },
+    removeOlderClaims: (iso) => run(client.from('kv').delete().like('key', 'claim:%').lt('updated_at', iso)),
   };
 }
 

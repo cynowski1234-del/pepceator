@@ -18,6 +18,7 @@ const report = require('./report');
 const { getDb } = require('./db');
 const { startHeartbeat } = require('./db/status');
 const { createTeam } = require('./team');
+const claims = require('./claims'); // gdy działają dwie kopie bota - tylko jedna wykonuje akcję
 
 // Dane: pliki w data/ (lokalnie) albo Supabase (gdy SUPABASE_URL jest w .env / zmiennych hostingu)
 const db = getDb();
@@ -152,6 +153,7 @@ async function dmDeleted(user, guild, reason) {
 
 // Scam: usunięcie tej jednej wiadomości + raport w logach. Bez banów i wyciszeń.
 async function removeScam(message, result, cfg, { images } = {}) {
+  if (!(await claims.claim('mod', message.id))) return; // zajmuje się tym inna kopia bota
   const repeat = wasRecentlyPunished(message.guildId, message.author.id);
   const deleted = await message.delete().then(() => true).catch(() => false);
   if (repeat) return; // kolejna wiadomość od tej samej osoby w krótkim czasie - usuwamy bez nowego raportu
@@ -186,6 +188,7 @@ async function removeScam(message, result, cfg, { images } = {}) {
 
 // Zablokowana fraza (panel -> Anty Spam): usunięcie wiadomości + raport
 async function removePhrase(message, rule, cfg) {
+  if (!(await claims.claim('mod', message.id))) return; // zajmuje się tym inna kopia bota
   const repeat = wasRecentlyPunished(message.guildId, message.author.id);
   const deleted = await message.delete().then(() => true).catch(() => false);
   if (repeat) return;
@@ -220,6 +223,7 @@ async function removePhrase(message, rule, cfg) {
 
 // Ta sama wiadomość z linkiem / obrazkiem na wielu kanałach (przejęte konto): usunięcie tych kopii
 async function removeSpam(message, entries, cfg) {
+  if (!(await claims.claim('mod', message.id))) return; // zajmuje się tym inna kopia bota
   let deleted = 0;
   for (const e of entries) {
     const channel = message.guild.channels.cache.get(e.channelId);
@@ -343,8 +347,10 @@ async function handleMessage(message) {
   // 2. AI (Gemini): oznaczenie bota / odpowiedź na jego wiadomość -> zawsze odpowiada,
   //    zwykłe pytanie na czacie (bez pingowania) -> odpowiada sam, jeśli to pytanie, na które może pomóc
   if (!client.user) return; // bot jeszcze nie w pełni zalogowany
-  if (ai.isQuestion(message, client.user)) await ai.answer(message, client.user);
-  else if (ai.shouldAutoAnswer(message, client.user)) await ai.answer(message, client.user, { auto: true });
+  const direct = ai.isQuestion(message, client.user);
+  if (!direct && !ai.shouldAutoAnswer(message, client.user)) return;
+  if (!(await claims.claim('ai', message.id))) return; // odpowiada już inna kopia bota
+  await ai.answer(message, client.user, direct ? {} : { auto: true });
 }
 
 // ---------- zdarzenia ----------
@@ -396,6 +402,7 @@ client.once(Events.ClientReady, async (c) => {
   startAdminPanel();
   if (db) {
     startHeartbeat(db, () => ({
+      instance: claims.INSTANCE,
       tag: client.user?.tag,
       ping: Math.round(client.ws.ping),
       guilds: client.guilds.cache.size,
@@ -443,6 +450,7 @@ async function checkDailyReports() {
     for (const guild of client.guilds.cache.values()) {
       const cfg = storage.get(guild.id);
       if (!cfg.logChannelId || cfg.lastReportDay === day) continue;
+      if (!(await claims.claim('report', `${guild.id}:${day}`))) continue; // raport wysyła inna kopia bota
       const res = await sendServerReport(guild);
       if (res.ok) storage.setLastReportDay(guild.id, day);
     }
@@ -568,7 +576,8 @@ async function startDatabaseSync() {
   console.log('🗄️  Supabase: dane wczytane (odświeżanie co 30 s)');
   setInterval(refreshAll, 30 * 1000);
   ai.setKnowledgeSource(() => knowledgeStore.text());
-  const cleanup = () => events.cleanup().catch((err) => console.warn(`[baza] czyszczenie zdarzeń: ${err.message}`));
+  const cleanup = () => Promise.all([events.cleanup(), claims.cleanup()])
+    .catch((err) => console.warn(`[baza] czyszczenie: ${err.message}`));
   cleanup();
   setInterval(cleanup, 24 * 60 * 60 * 1000);
 }
